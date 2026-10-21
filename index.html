@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EKEDC | Eko Power Distribution Company</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <div id="splashScreen" class="splash-screen">
+      <div class="splash-logo-wrap">
+        <img class="splash-logo-image" src="img/idFfPKfkG1_1792622015866.png" alt="EKEDC logo" />
+        <div class="splash-subtitle">EKO ELECTRICITY DISTRIBUTION PLC</div>
+        <div class="splash-tagline">empowering quality of lives</div>
+        <div class="splash-loader"><span></span></div>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark">
+            <img src="img/idFfPKfkG1_1792622015866.png" alt="EKEDC logo" />
+          </div>
+          <div>
+            <p class="eyebrow">Eko Electricity Distribution Plc</p>
+            <h1>Daily Cashier Report Portal</h1>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button id="toggleAdmin" class="secondary-btn">Switch to Admin</button>
+          <button id="logoutBtn" class="ghost-btn hidden">Logout</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section id="loginSection" class="auth-layout visible">
+          <div class="brand-hero panel">
+            <div class="brand-logo-large">
+              <img class="company-logo" src="img/idFfPKfkG1_1792622015866.png" alt="EKEDC logo" />
+              <div class="logo-sub">EKO ELECTRICITY DISTRIBUTION PLC</div>
+              <div class="logo-tag">empowering quality of lives</div>
+            </div>
+
+            <div class="hero-metrics">
+              <div>
+                <strong>13</strong>
+                <span>Districts</span>
+              </div>
+              <div>
+                <strong>10:00</strong>
+                <span>Cutoff Time</span>
+              </div>
+              <div>
+                <strong>Daily</strong>
+                <span>Compliance</span>
+              </div>
+            </div>
+          </div>
+
+          <section class="panel auth-panel">
+            <div class="panel-header">
+              <span class="pill">Secure Access</span>
+              <h2>Staff Sign In</h2>
+            </div>
+
+            <form id="loginForm" class="stack-form">
+              <label>
+                Username
+                <input id="username" type="text" value="admin" required />
+              </label>
+
+              <label>
+                Password
+                <input id="password" type="password" value="admin" required />
+              </label>
+
+              <button class="primary-btn" type="submit">Sign In</button>
+            </form>
+          </section>
+        </section>
+
+        <section id="dashboardSection" class="dashboard hidden">
+          <div class="summary-grid">
+            <div class="summary-card accent">
+              <span>Total Reports</span>
+              <strong id="totalReports">0</strong>
+            </div>
+            <div class="summary-card">
+              <span>On Time</span>
+              <strong id="onTimeReports">0</strong>
+            </div>
+            <div class="summary-card warning">
+              <span>Late Reports</span>
+              <strong id="lateReports">0</strong>
+            </div>
+            <div class="summary-card success">
+              <span>Total Collection</span>
+              <strong id="totalCollection">₦0</strong>
+            </div>
+          </div>
+
+          <div class="report-grid">
+            <section class="panel form-panel">
+              <div class="panel-header">
+                <span class="pill">Daily submission</span>
+                <h2>Cashier Performance Report</h2>
+              </div>
+
+              <div id="submissionSuccess" class="success-banner hidden">
+                <div class="success-icon">✓</div>
+                <div>
+                  <strong>Daily report submitted successfully</strong>
+                  <span>Your entry has been recorded and is ready for admin review.</span>
+                </div>
+              </div>
+
+              <form id="reportForm" class="stack-form">
+                <div class="two-column">
+                  <label>
+                    Date
+                    <input id="reportDate" type="date" required />
+                  </label>
+
+                  <label>
+                    District
+                    <select id="district" required>
+                      <option value="">Select district</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="two-column">
+                  <label>
+                    Cashier Name
+                    <input id="cashierName" type="text" placeholder="Enter cashier name" required />
+                  </label>
+
+                  <label>
+                    Number of Transactions
+                    <input id="transactions" type="number" min="0" required />
+                  </label>
+                </div>
+
+                <div class="two-column">
+                  <label>
+                    Total Collection (₦)
+                    <input id="totalSales" type="number" min="0" step="0.01" required />
+                  </label>
+
+                  <label>
+                    Closing Wallet Balance (₦)
+                    <input id="walletBalance" type="number" min="0" step="0.01" required />
+                  </label>
+                </div>
+
+                <input id="cashierType" type="hidden" value="Main Cashier" />
+                <input id="walletZeroized" type="hidden" value="No" />
+                <input id="remarks" type="hidden" value="" />
+                <input id="reportReceivedDate" type="hidden" />
+                <input id="timeReceived" type="hidden" />
+
+                <div class="submit-row">
+                  <button type="button" id="previewBtn" class="primary-btn">Preview & Submit</button>
+                </div>
+              </form>
+            </section>
+
+            <aside class="panel side-panel">
+              <div class="panel-header">
+                <span class="pill">Submission status</span>
+                <h2>Timeline Check</h2>
+              </div>
+
+              <div class="status-card">
+                <p>Submission deadline</p>
+                <h3 id="cutoffDisplay">10:00 AM</h3>
+                <div class="status-highlight" id="timingBadge">Pending</div>
+              </div>
+
+              <div class="info-list">
+                <div>
+                  <span>Report Received</span>
+                  <strong id="receivedDateText">--</strong>
+                </div>
+                <div>
+                  <span>Time Received</span>
+                  <strong id="receivedTimeText">--</strong>
+                </div>
+                <div>
+                  <span>On Time</span>
+                  <strong id="onTimeText">--</strong>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="adminSection" class="panel admin-panel hidden">
+          <div class="panel-header admin-header">
+            <div>
+              <span class="pill">Administrator</span>
+              <h2>Advanced Admin Panel</h2>
+            </div>
+            <button id="closeAdminPanel" class="ghost-btn">Close</button>
+          </div>
+
+          <div class="admin-grid">
+            <div class="admin-card">
+              <h3>Submission Settings</h3>
+              <label>
+                Report cutoff time
+                <input id="cutoffTimeInput" type="time" value="10:00" />
+              </label>
+              <button id="saveSettingsBtn" class="primary-btn">Save Settings</button>
+            </div>
+
+            <div class="admin-card">
+              <h3>Admin Review Fields</h3>
+              <label>
+                Cashier Type
+                <select id="adminCashierType">
+                  <option value="Main Cashier">Main Cashier</option>
+                  <option value="Assistant Cashier">Assistant Cashier</option>
+                  <option value="Relief Cashier">Relief Cashier</option>
+                  <option value="Revenue Officer">Revenue Officer</option>
+                </select>
+              </label>
+              <label>
+                Wallet Zeroized
+                <select id="adminWalletZeroized">
+                  <option value="Yes">Yes</option>
+                  <option value="No" selected>No</option>
+                </select>
+              </label>
+              <label>
+                Remarks
+                <textarea id="adminRemarks" rows="3" placeholder="Add admin remarks or supervisor notes..."></textarea>
+              </label>
+              <button id="applyAdminReviewBtn" class="secondary-btn full-width">Apply to Preview</button>
+            </div>
+          </div>
+
+          <div class="admin-grid">
+            <div class="admin-card">
+              <h3>Export Reports</h3>
+              <p>Download all submitted cashier reports in Excel format for your supervisor.</p>
+              <button id="exportAllBtn" class="secondary-btn full-width">Export All to Excel</button>
+            </div>
+          </div>
+
+          <div class="admin-day-groups" id="dailyReportGroups"></div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>District</th>
+                  <th>Cashier</th>
+                  <th>Cashier Type</th>
+                  <th>Transactions</th>
+                  <th>Total Collection</th>
+                  <th>Wallet Balance</th>
+                  <th>Wallet Zeroized</th>
+                  <th>Report Recv.</th>
+                  <th>Time Recv.</th>
+                  <th>On Time</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody id="reportsTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="previewModal" class="modal hidden" aria-modal="true" role="dialog">
+      <div class="modal-card">
+        <div class="panel-header">
+          <span class="pill">Review</span>
+          <h2>Final Preview</h2>
+        </div>
+
+        <div id="previewContent" class="preview-content"></div>
+
+        <div class="confirm-boxes">
+          <label class="check-row">
+            <input id="confirmCheckOne" type="checkbox" />
+            <span>I confirm the entry fields are accurate.</span>
+          </label>
+          <label class="check-row">
+            <input id="confirmCheckTwo" type="checkbox" />
+            <span>I confirm the report is ready to submit and export.</span>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button id="cancelPreviewBtn" class="ghost-btn">Back</button>
+          <button id="confirmSubmitBtn" class="primary-btn" disabled>Confirm & Submit</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="adminModal" class="modal hidden" aria-modal="true" role="dialog">
+      <div class="modal-card narrow">
+        <div class="panel-header">
+          <span class="pill">Admin</span>
+          <h2>Administrator Login</h2>
+        </div>
+
+        <form id="adminLoginForm" class="stack-form">
+          <label>
+            Password
+            <input id="adminPassword" type="password" placeholder="Enter admin password" required />
+          </label>
+          <button type="submit" class="primary-btn">Unlock Admin Panel</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

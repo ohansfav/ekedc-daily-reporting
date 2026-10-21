@@ -1,0 +1,9 @@
+{
+  "name": "ekedc-daily-reporting",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EKEDC cashier daily reporting app",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
