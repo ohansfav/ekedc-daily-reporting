@@ -246,11 +246,12 @@
             </div>
           </div>
 
-          <div class="admin-grid">
+          <div class="admin-grid export-grid">
             <div class="admin-card">
               <h3>Export Reports</h3>
               <p>Download all submitted cashier reports in Excel format for your supervisor.</p>
               <button id="exportAllBtn" class="secondary-btn full-width">Export All to Excel</button>
+              <button id="exportWeeklyBtn" class="primary-btn full-width">Export Weekly Report</button>
             </div>
           </div>
 
@@ -321,6 +322,98 @@
             <input id="adminPassword" type="password" placeholder="Enter admin password" required />
           </label>
           <button type="submit" class="primary-btn">Unlock Admin Panel</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="editReportModal" class="modal hidden" aria-modal="true" role="dialog">
+      <div class="modal-card wide">
+        <div class="panel-header">
+          <span class="pill">Admin</span>
+          <h2>Edit Submitted Report</h2>
+        </div>
+
+        <form id="editReportForm" class="stack-form">
+          <div class="two-column">
+            <label>
+              Report Date
+              <input id="editReportDate" type="date" required />
+            </label>
+            <label>
+              District
+              <select id="editDistrict" required></select>
+            </label>
+          </div>
+
+          <div class="two-column">
+            <label>
+              Cashier Name
+              <input id="editCashierName" type="text" required />
+            </label>
+            <label>
+              Cashier Type
+              <select id="editCashierType">
+                <option value="Main Cashier">Main Cashier</option>
+                <option value="Assistant Cashier">Assistant Cashier</option>
+                <option value="Relief Cashier">Relief Cashier</option>
+                <option value="Revenue Officer">Revenue Officer</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="two-column">
+            <label>
+              Transactions
+              <input id="editTransactions" type="number" min="0" required />
+            </label>
+            <label>
+              Total Collection (₦)
+              <input id="editTotalSales" type="number" min="0" step="0.01" required />
+            </label>
+          </div>
+
+          <div class="two-column">
+            <label>
+              Wallet Balance (₦)
+              <input id="editWalletBalance" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              Wallet Zeroized
+              <select id="editWalletZeroized">
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="two-column">
+            <label>
+              Report Received Date
+              <input id="editReportReceivedDate" type="date" required />
+            </label>
+            <label>
+              Time Received
+              <input id="editTimeReceived" type="time" required />
+            </label>
+          </div>
+
+          <label>
+            On Time Status
+            <select id="editOnTimeStatus">
+              <option value="On Time">On Time</option>
+              <option value="Late">Late</option>
+            </select>
+          </label>
+
+          <label>
+            Remarks
+            <textarea id="editRemarks" rows="3" placeholder="Insert remarks or supervisory notes..."></textarea>
+          </label>
+
+          <div class="modal-actions">
+            <button type="button" id="cancelEditReportBtn" class="ghost-btn">Cancel</button>
+            <button type="submit" class="primary-btn">Save Changes</button>
+          </div>
         </form>
       </div>
     </div>

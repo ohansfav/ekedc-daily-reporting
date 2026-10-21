@@ -63,6 +63,10 @@ const adminWalletZeroized = document.getElementById('adminWalletZeroized');
 const adminRemarks = document.getElementById('adminRemarks');
 const submissionSuccess = document.getElementById('submissionSuccess');
 const dailyReportGroups = document.getElementById('dailyReportGroups');
+const editReportModal = document.getElementById('editReportModal');
+const editReportForm = document.getElementById('editReportForm');
+const editDistrict = document.getElementById('editDistrict');
+const exportWeeklyBtn = document.getElementById('exportWeeklyBtn');
 
 function initializeDistricts() {
   if (!districtSelect) return;
@@ -119,6 +123,18 @@ async function saveReportToDb(report) {
 
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('Failed to save report.'));
+  });
+}
+
+async function updateReportInDb(report) {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(REPORT_STORE, 'readwrite');
+    const store = transaction.objectStore(REPORT_STORE);
+    const request = store.put(report);
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Failed to update report.'));
   });
 }
 
@@ -226,7 +242,7 @@ function renderReportsTable() {
   if (!state.submittedReports.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="12" style="text-align:center; color: var(--muted); padding: 18px;">No reports submitted yet.</td>
+        <td colspan="13" style="text-align:center; color: var(--muted); padding: 18px;">No reports submitted yet.</td>
       </tr>
     `;
     if (dailyReportGroups) dailyReportGroups.innerHTML = '';
@@ -248,8 +264,15 @@ function renderReportsTable() {
       <td>${report.timeReceived}</td>
       <td>${report.onTime}</td>
       <td>${report.remarks || '—'}</td>
+      <td>
+        <button class="table-action-btn edit-report-btn" data-id="${report.id}">Edit</button>
+      </td>
     `;
     tbody.appendChild(row);
+  });
+
+  tbody.querySelectorAll('.edit-report-btn').forEach((button) => {
+    button.addEventListener('click', () => openEditReportModal(Number(button.dataset.id)));
   });
 
   renderDailyGroups();
@@ -291,6 +314,7 @@ function renderDailyGroups() {
               <th>Time</th>
               <th>On Time</th>
               <th>Remarks</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -305,6 +329,7 @@ function renderDailyGroups() {
                 <td>${report.timeReceived}</td>
                 <td>${report.onTime}</td>
                 <td>${report.remarks || '—'}</td>
+                <td><button class="table-action-btn edit-report-btn" data-id="${report.id}">Edit</button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -315,6 +340,10 @@ function renderDailyGroups() {
 
   dailyReportGroups.querySelectorAll('.export-day-btn').forEach((button) => {
     button.addEventListener('click', () => exportDailyGroup(button.dataset.date));
+  });
+
+  dailyReportGroups.querySelectorAll('.edit-report-btn').forEach((button) => {
+    button.addEventListener('click', () => openEditReportModal(Number(button.dataset.id)));
   });
 }
 
@@ -389,6 +418,101 @@ function exportDailyGroup(dateValue) {
 
   exportWorkbook(records, `ekedp_${dateValue}_cashier_reports.xlsx`, `Daily_${dateValue}`);
   showToast(`Exported ${records.length} report(s) for ${dateValue}.`);
+}
+
+function exportWeeklyReport() {
+  if (!state.submittedReports.length) {
+    showToast('No data available for weekly export.');
+    return;
+  }
+
+  const weeklyGroups = buildWeeklyGroups(state.submittedReports);
+  const workbook = XLSX.utils.book_new();
+
+  weeklyGroups.forEach(([weekKey, records]) => {
+    const sheet = XLSX.utils.json_to_sheet(records);
+    XLSX.utils.book_append_sheet(workbook, sheet, weekKey);
+  });
+
+  const weeklySummary = weeklyGroups.map(([weekKey, records]) => ({
+    week: weekKey,
+    reports: records.length,
+    totalCollection: records.reduce((sum, item) => sum + Number(item.totalSales || 0), 0),
+    onTime: records.filter((item) => item.onTime === 'On Time').length,
+    late: records.filter((item) => item.onTime !== 'On Time').length
+  }));
+
+  const summarySheet = XLSX.utils.json_to_sheet(weeklySummary);
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Weekly_Summary');
+  XLSX.writeFile(workbook, 'ekedp_weekly_report.xlsx');
+  showToast('Weekly report export generated successfully.');
+}
+
+function populateEditDistrictOptions() {
+  if (!editDistrict) return;
+
+  editDistrict.innerHTML = ['<option value="">Select district</option>']
+    .concat(DISTRICTS.map((district) => `<option value="${district}">${district}</option>`))
+    .join('');
+}
+
+function openEditReportModal(reportId) {
+  const report = state.submittedReports.find((item) => item.id === reportId);
+  if (!report || !editReportModal || !editReportForm) return;
+
+  populateEditDistrictOptions();
+  document.getElementById('editReportDate').value = report.date || '';
+  document.getElementById('editDistrict').value = report.district || '';
+  document.getElementById('editCashierName').value = report.cashierName || '';
+  document.getElementById('editCashierType').value = report.cashierType || 'Main Cashier';
+  document.getElementById('editTransactions').value = report.transactions || 0;
+  document.getElementById('editTotalSales').value = report.totalSales || 0;
+  document.getElementById('editWalletBalance').value = report.walletBalance || 0;
+  document.getElementById('editWalletZeroized').value = report.walletZeroized || 'No';
+  document.getElementById('editReportReceivedDate').value = report.reportReceivedDate || report.date || '';
+  document.getElementById('editTimeReceived').value = report.timeReceived || '09:00';
+  document.getElementById('editOnTimeStatus').value = report.onTime || 'On Time';
+  document.getElementById('editRemarks').value = report.remarks || '';
+  editReportForm.dataset.reportId = String(reportId);
+  editReportModal.classList.remove('hidden');
+}
+
+async function saveEditedReport(event) {
+  event.preventDefault();
+  if (!editReportForm || !editReportForm.dataset.reportId) return;
+
+  const id = Number(editReportForm.dataset.reportId);
+  const index = state.submittedReports.findIndex((report) => report.id === id);
+  if (index === -1) return;
+
+  const updatedReport = {
+    ...state.submittedReports[index],
+    date: document.getElementById('editReportDate').value,
+    district: document.getElementById('editDistrict').value,
+    cashierName: document.getElementById('editCashierName').value.trim(),
+    cashierType: document.getElementById('editCashierType').value,
+    transactions: Number(document.getElementById('editTransactions').value || 0),
+    totalSales: Number(document.getElementById('editTotalSales').value || 0),
+    walletBalance: Number(document.getElementById('editWalletBalance').value || 0),
+    walletZeroized: document.getElementById('editWalletZeroized').value,
+    reportReceivedDate: document.getElementById('editReportReceivedDate').value,
+    timeReceived: document.getElementById('editTimeReceived').value,
+    onTime: document.getElementById('editOnTimeStatus').value,
+    remarks: document.getElementById('editRemarks').value.trim()
+  };
+
+  try {
+    await updateReportInDb(updatedReport);
+    state.submittedReports[index] = updatedReport;
+    renderReportsTable();
+    updateSummaryCards();
+    editReportModal.classList.add('hidden');
+    editReportForm.reset();
+    showToast('Submitted report updated successfully.');
+  } catch (error) {
+    console.error('updateReportInDb error:', error);
+    showToast('Unable to update report. Please try again.');
+  }
 }
 
 async function submitReport() {
@@ -571,7 +695,6 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
     return acc;
   }, {});
 
-  const weeklyGrouped = buildWeeklyGroups(state.submittedReports);
   const workbook = XLSX.utils.book_new();
 
   Object.entries(dateGrouped).forEach(([dateKey, reports]) => {
@@ -579,6 +702,7 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
     XLSX.utils.book_append_sheet(workbook, sheet, `Daily_${dateKey}`);
   });
 
+  const weeklyGrouped = buildWeeklyGroups(state.submittedReports);
   if (weeklyGrouped.length) {
     const weeklySummary = weeklyGrouped.map(([weekKey, records]) => ({
       week: weekKey,
@@ -595,6 +719,21 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
   XLSX.writeFile(workbook, 'ekedp_all_daily_reports.xlsx');
   showToast('Grouped daily and weekly Excel export created.');
 });
+
+if (exportWeeklyBtn) {
+  exportWeeklyBtn.addEventListener('click', exportWeeklyReport);
+}
+
+if (editReportForm) {
+  editReportForm.addEventListener('submit', saveEditedReport);
+}
+
+if (document.getElementById('cancelEditReportBtn')) {
+  document.getElementById('cancelEditReportBtn').addEventListener('click', () => {
+    if (editReportModal) editReportModal.classList.add('hidden');
+    editReportForm.reset();
+  });
+}
 
 function initSplashScreen() {
   if (!splashScreen) return;
