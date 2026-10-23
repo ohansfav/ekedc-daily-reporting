@@ -23,8 +23,9 @@ Then open: http://localhost:3000
 
 - Staff login
 - Cashier daily report form
-- Preview and confirmation before submit
+- Editable report review and confirmation before submit
 - Admin review dashboard
+- Responsive admin workspace with seven-day submission chart, report search, filters, editing, and export tools
 - Daily grouping and export to Excel
 - Weekly summary export
 - Local browser persistence with IndexedDB

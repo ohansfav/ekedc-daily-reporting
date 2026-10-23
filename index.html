@@ -13,7 +13,7 @@
   <body>
     <div id="splashScreen" class="splash-screen">
       <div class="splash-logo-wrap">
-        <img class="splash-logo-image" src="img/idFfPKfkG1_1792622015866.png" alt="EKEDC logo" />
+        <img class="splash-logo-image" src="img/images__1_-removebg-preview.png" alt="EKEDC logo" />
         <div class="splash-subtitle">EKO ELECTRICITY DISTRIBUTION PLC</div>
         <div class="splash-tagline">empowering quality of lives</div>
         <div class="splash-loader"><span></span></div>
@@ -24,7 +24,7 @@
       <header class="topbar">
         <div class="brand-block">
           <div class="brand-mark">
-            <img src="img/idFfPKfkG1_1792622015866.png" alt="EKEDC logo" />
+            <img src="img/images__1_-removebg-preview.png" alt="EKEDC logo" />
           </div>
           <div>
             <p class="eyebrow">Eko Electricity Distribution Plc</p>
@@ -33,7 +33,7 @@
         </div>
 
         <div class="header-actions">
-          <button id="toggleAdmin" class="secondary-btn">Switch to Admin</button>
+          <button id="toggleAdmin" class="secondary-btn">Admin Console</button>
           <button id="logoutBtn" class="ghost-btn hidden">Logout</button>
         </div>
       </header>
@@ -42,7 +42,7 @@
         <section id="loginSection" class="auth-layout visible">
           <div class="brand-hero panel">
             <div class="brand-logo-large">
-              <img class="company-logo" src="img/idFfPKfkG1_1792622015866.png" alt="EKEDC logo" />
+              <img class="company-logo" src="img/images__1_-removebg-preview.png" alt="EKEDC logo" />
               <div class="logo-sub">EKO ELECTRICITY DISTRIBUTION PLC</div>
               <div class="logo-tag">empowering quality of lives</div>
             </div>
@@ -86,25 +86,6 @@
         </section>
 
         <section id="dashboardSection" class="dashboard hidden">
-          <div class="summary-grid">
-            <div class="summary-card accent">
-              <span>Total Reports</span>
-              <strong id="totalReports">0</strong>
-            </div>
-            <div class="summary-card">
-              <span>On Time</span>
-              <strong id="onTimeReports">0</strong>
-            </div>
-            <div class="summary-card warning">
-              <span>Late Reports</span>
-              <strong id="lateReports">0</strong>
-            </div>
-            <div class="summary-card success">
-              <span>Total Collection</span>
-              <strong id="totalCollection">₦0</strong>
-            </div>
-          </div>
-
           <div class="report-grid">
             <section class="panel form-panel">
               <div class="panel-header">
@@ -201,83 +182,144 @@
           </div>
         </section>
 
-        <section id="adminSection" class="panel admin-panel hidden">
-          <div class="panel-header admin-header">
+        <section id="adminSection" class="admin-page hidden">
+          <header class="admin-page-header">
             <div>
-              <span class="pill">Administrator</span>
-              <h2>Advanced Admin Panel</h2>
+              <span class="pill">Administrator workspace</span>
+              <h2>Operations dashboard</h2>
+              <p>Review cashier submissions, manage reporting settings, and export your records.</p>
             </div>
-            <button id="closeAdminPanel" class="ghost-btn">Close</button>
-          </div>
+            <button id="closeAdminPanel" class="ghost-btn">Back to staff workspace</button>
+          </header>
 
-          <div class="admin-grid">
-            <div class="admin-card">
-              <h3>Submission Settings</h3>
+          <nav class="admin-nav" aria-label="Admin sections">
+            <a class="active" href="#adminOverview">Overview</a>
+            <a href="#adminReports">Reports</a>
+            <a href="#adminSettings">Settings & exports</a>
+          </nav>
+
+          <section id="adminOverview" class="admin-section-block">
+            <div class="admin-section-heading">
+              <div>
+                <h3>Reporting overview</h3>
+                <p>Collection and submission status across all saved reports.</p>
+              </div>
+            </div>
+            <div class="activity-chart-card">
+              <div class="activity-chart-heading">
+                <div>
+                  <h4>Submission activity</h4>
+                  <p>Reports received over the last seven days</p>
+                </div>
+                <span class="chart-legend"><span></span> Daily reports</span>
+              </div>
+              <div id="activityChart" class="activity-chart" role="img" aria-label="No report activity in the last seven days"></div>
+            </div>
+            <div class="summary-grid admin-summary-grid">
+              <div class="summary-card accent">
+                <span>Total reports</span>
+                <strong id="totalReports">0</strong>
+              </div>
+              <div class="summary-card">
+                <span>On time</span>
+                <strong id="onTimeReports">0</strong>
+              </div>
+              <div class="summary-card warning">
+                <span>Late reports</span>
+                <strong id="lateReports">0</strong>
+              </div>
+              <div class="summary-card success">
+                <span>Total collection</span>
+                <strong id="totalCollection">₦0</strong>
+              </div>
+            </div>
+          </section>
+
+          <section id="adminReports" class="admin-section-block">
+            <div class="admin-section-heading reports-heading">
+              <div>
+                <h3>Cashier reports</h3>
+                <p id="reportResultsCount" aria-live="polite">0 reports</p>
+              </div>
+              <div class="report-export-actions">
+                <label>
+                  Export reports for date
+                  <select id="dailyExportDate" aria-label="Choose report date to export">
+                    <option value="">Choose a date</option>
+                  </select>
+                </label>
+                <button id="exportSelectedDayBtn" class="secondary-btn" disabled>Export day</button>
+              </div>
+            </div>
+
+            <div class="report-filters" role="search" aria-label="Filter cashier reports">
               <label>
-                Report cutoff time
-                <input id="cutoffTimeInput" type="time" value="10:00" />
+                Search reports
+                <input id="reportSearch" type="search" placeholder="Cashier name or remarks" />
               </label>
-              <button id="saveSettingsBtn" class="primary-btn">Save Settings</button>
-            </div>
-
-            <div class="admin-card">
-              <h3>Admin Review Fields</h3>
               <label>
-                Cashier Type
-                <select id="adminCashierType">
-                  <option value="Main Cashier">Main Cashier</option>
-                  <option value="Assistant Cashier">Assistant Cashier</option>
-                  <option value="Relief Cashier">Relief Cashier</option>
-                  <option value="Revenue Officer">Revenue Officer</option>
+                District
+                <select id="reportDistrictFilter">
+                  <option value="">All districts</option>
                 </select>
               </label>
               <label>
-                Wallet Zeroized
-                <select id="adminWalletZeroized">
-                  <option value="Yes">Yes</option>
-                  <option value="No" selected>No</option>
-                </select>
+                Report date
+                <input id="reportDateFilter" type="date" />
               </label>
-              <label>
-                Remarks
-                <textarea id="adminRemarks" rows="3" placeholder="Add admin remarks or supervisor notes..."></textarea>
-              </label>
-              <button id="applyAdminReviewBtn" class="secondary-btn full-width">Apply to Preview</button>
+              <button id="clearReportFiltersBtn" class="ghost-btn">Clear filters</button>
             </div>
-          </div>
 
-          <div class="admin-grid export-grid">
-            <div class="admin-card">
-              <h3>Export Reports</h3>
-              <p>Download all submitted cashier reports in Excel format for your supervisor.</p>
-              <button id="exportAllBtn" class="secondary-btn full-width">Export All to Excel</button>
-              <button id="exportWeeklyBtn" class="primary-btn full-width">Export Weekly Report</button>
+            <div class="table-wrap admin-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>District</th>
+                    <th>Cashier</th>
+                    <th>Cashier type</th>
+                    <th>Transactions</th>
+                    <th>Total collection</th>
+                    <th>Wallet balance</th>
+                    <th>Zeroized</th>
+                    <th>Received</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>Remarks</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="reportsTableBody"></tbody>
+              </table>
             </div>
-          </div>
+          </section>
 
-          <div class="admin-day-groups" id="dailyReportGroups"></div>
+          <section id="adminSettings" class="admin-section-block">
+            <div class="admin-section-heading">
+              <div>
+                <h3>Settings & exports</h3>
+                <p>Control the reporting deadline and download records for review.</p>
+              </div>
+            </div>
+            <div class="admin-grid">
+              <div class="admin-card">
+                <h4>Submission deadline</h4>
+                <p>Reports received after this time are marked late.</p>
+                <label>
+                  Daily cutoff time
+                  <input id="cutoffTimeInput" type="time" value="10:00" required />
+                </label>
+                <button id="saveSettingsBtn" class="primary-btn">Save deadline</button>
+              </div>
 
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>District</th>
-                  <th>Cashier</th>
-                  <th>Cashier Type</th>
-                  <th>Transactions</th>
-                  <th>Total Collection</th>
-                  <th>Wallet Balance</th>
-                  <th>Wallet Zeroized</th>
-                  <th>Report Recv.</th>
-                  <th>Time Recv.</th>
-                  <th>On Time</th>
-                  <th>Remarks</th>
-                </tr>
-              </thead>
-              <tbody id="reportsTableBody"></tbody>
-            </table>
-          </div>
+              <div class="admin-card export-card">
+                <h4>Export reports</h4>
+                <p>Download all saved records or a workbook grouped by reporting week.</p>
+                <button id="exportAllBtn" class="secondary-btn">Export all reports</button>
+                <button id="exportWeeklyBtn" class="primary-btn">Export weekly report</button>
+              </div>
+            </div>
+          </section>
         </section>
       </main>
     </div>
@@ -286,10 +328,37 @@
       <div class="modal-card">
         <div class="panel-header">
           <span class="pill">Review</span>
-          <h2>Final Preview</h2>
+          <h2>Review & edit before submission</h2>
         </div>
 
         <div id="previewContent" class="preview-content"></div>
+
+        <div class="submission-review-fields">
+          <h3>Report details</h3>
+          <p>Check these details for this report before submitting.</p>
+          <div class="two-column">
+            <label>
+              Cashier type
+              <select id="previewCashierType">
+                <option value="Main Cashier">Main Cashier</option>
+                <option value="Assistant Cashier">Assistant Cashier</option>
+                <option value="Relief Cashier">Relief Cashier</option>
+                <option value="Revenue Officer">Revenue Officer</option>
+              </select>
+            </label>
+            <label>
+              Wallet zeroized
+              <select id="previewWalletZeroized">
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            Remarks
+            <textarea id="previewRemarks" rows="3" placeholder="Add a note for this report (optional)"></textarea>
+          </label>
+        </div>
 
         <div class="confirm-boxes">
           <label class="check-row">
@@ -321,7 +390,10 @@
             Password
             <input id="adminPassword" type="password" placeholder="Enter admin password" required />
           </label>
-          <button type="submit" class="primary-btn">Unlock Admin Panel</button>
+          <div class="modal-actions">
+            <button id="cancelAdminLoginBtn" type="button" class="ghost-btn">Cancel</button>
+            <button type="submit" class="primary-btn">Open admin workspace</button>
+          </div>
         </form>
       </div>
     </div>
@@ -330,7 +402,7 @@
       <div class="modal-card wide">
         <div class="panel-header">
           <span class="pill">Admin</span>
-          <h2>Edit Submitted Report</h2>
+          <h2>Review & edit cashier report</h2>
         </div>
 
         <form id="editReportForm" class="stack-form">
@@ -412,7 +484,7 @@
 
           <div class="modal-actions">
             <button type="button" id="cancelEditReportBtn" class="ghost-btn">Cancel</button>
-            <button type="submit" class="primary-btn">Save Changes</button>
+            <button type="submit" class="primary-btn">Save reviewed report</button>
           </div>
         </form>
       </div>

@@ -58,15 +58,17 @@ const onTimeText = document.getElementById('onTimeText');
 const receivedDateText = document.getElementById('receivedDateText');
 const receivedTimeText = document.getElementById('receivedTimeText');
 const previewContent = document.getElementById('previewContent');
-const adminCashierType = document.getElementById('adminCashierType');
-const adminWalletZeroized = document.getElementById('adminWalletZeroized');
-const adminRemarks = document.getElementById('adminRemarks');
 const submissionSuccess = document.getElementById('submissionSuccess');
-const dailyReportGroups = document.getElementById('dailyReportGroups');
 const editReportModal = document.getElementById('editReportModal');
 const editReportForm = document.getElementById('editReportForm');
 const editDistrict = document.getElementById('editDistrict');
 const exportWeeklyBtn = document.getElementById('exportWeeklyBtn');
+const reportSearch = document.getElementById('reportSearch');
+const reportDistrictFilter = document.getElementById('reportDistrictFilter');
+const reportDateFilter = document.getElementById('reportDateFilter');
+const dailyExportDate = document.getElementById('dailyExportDate');
+const exportSelectedDayBtn = document.getElementById('exportSelectedDayBtn');
+const activityChart = document.getElementById('activityChart');
 
 function initializeDistricts() {
   if (!districtSelect) return;
@@ -76,6 +78,9 @@ function initializeDistricts() {
     option.value = district;
     option.textContent = district;
     districtSelect.appendChild(option);
+
+    const filterOption = option.cloneNode(true);
+    reportDistrictFilter.appendChild(filterOption);
   });
 }
 
@@ -227,11 +232,13 @@ function convertTimeToMinutes(timeString) {
 function setUserState() {
   const isAuth = localStorage.getItem(STORAGE_KEYS.auth) === 'authenticated';
   state.isLoggedIn = isAuth;
+  const isAdminView = state.isAdminLoggedIn;
 
-  if (loginSection) loginSection.classList.toggle('hidden', isAuth);
-  if (dashboardSection) dashboardSection.classList.toggle('hidden', !isAuth);
-  if (logoutBtn) logoutBtn.classList.toggle('hidden', !isAuth);
-  if (toggleAdminBtn) toggleAdminBtn.textContent = state.isAdminLoggedIn ? 'Admin View Open' : 'Switch to Admin';
+  if (loginSection) loginSection.classList.toggle('hidden', isAuth || isAdminView);
+  if (dashboardSection) dashboardSection.classList.toggle('hidden', !isAuth || isAdminView);
+  if (adminSection) adminSection.classList.toggle('hidden', !isAdminView);
+  if (logoutBtn) logoutBtn.classList.toggle('hidden', !isAuth && !isAdminView);
+  if (toggleAdminBtn) toggleAdminBtn.textContent = isAdminView ? 'Back to Staff' : 'Admin Console';
 }
 
 function renderReportsTable() {
@@ -239,112 +246,108 @@ function renderReportsTable() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  if (!state.submittedReports.length) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="13" style="text-align:center; color: var(--muted); padding: 18px;">No reports submitted yet.</td>
-      </tr>
-    `;
-    if (dailyReportGroups) dailyReportGroups.innerHTML = '';
+  const searchText = reportSearch.value.trim().toLocaleLowerCase();
+  const districtValue = reportDistrictFilter.value;
+  const dateValue = reportDateFilter.value;
+  const filteredReports = state.submittedReports
+    .filter((report) => {
+      const searchableText = `${report.cashierName || ''} ${report.remarks || ''}`.toLocaleLowerCase();
+      return (!searchText || searchableText.includes(searchText))
+        && (!districtValue || report.district === districtValue)
+        && (!dateValue || report.date === dateValue);
+    })
+    .sort((first, second) => `${second.date || ''} ${second.timeReceived || ''}`
+      .localeCompare(`${first.date || ''} ${first.timeReceived || ''}`));
+
+  const reportCount = document.getElementById('reportResultsCount');
+  if (reportCount) {
+    reportCount.textContent = `${filteredReports.length} ${filteredReports.length === 1 ? 'report' : 'reports'}`
+      + (filteredReports.length !== state.submittedReports.length
+        ? ` shown · ${state.submittedReports.length} total`
+        : '');
+  }
+
+  if (!filteredReports.length) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 13;
+    cell.className = 'empty-table-message';
+    cell.textContent = state.submittedReports.length
+      ? 'No reports match these filters.'
+      : 'No reports have been submitted yet.';
+    row.appendChild(cell);
+    tbody.appendChild(row);
+    refreshDailyExportDates();
     return;
   }
 
-  state.submittedReports.forEach((report) => {
+  filteredReports.forEach((report) => {
     const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${report.date}</td>
-      <td>${report.district}</td>
-      <td>${report.cashierName}</td>
-      <td>${report.cashierType}</td>
-      <td>${report.transactions}</td>
-      <td>₦${formatCurrency(report.totalSales)}</td>
-      <td>₦${formatCurrency(report.walletBalance)}</td>
-      <td>${report.walletZeroized}</td>
-      <td>${report.reportReceivedDate}</td>
-      <td>${report.timeReceived}</td>
-      <td>${report.onTime}</td>
-      <td>${report.remarks || '—'}</td>
-      <td>
-        <button class="table-action-btn edit-report-btn" data-id="${report.id}">Edit</button>
-      </td>
-    `;
+    const labels = [
+      'Date',
+      'District',
+      'Cashier',
+      'Cashier type',
+      'Transactions',
+      'Total collection',
+      'Wallet balance',
+      'Zeroized',
+      'Received',
+      'Time',
+      'Status',
+      'Remarks'
+    ];
+    const values = [
+      report.date,
+      report.district,
+      report.cashierName,
+      report.cashierType,
+      report.transactions,
+      `₦${formatCurrency(report.totalSales)}`,
+      `₦${formatCurrency(report.walletBalance)}`,
+      report.walletZeroized,
+      report.reportReceivedDate,
+      report.timeReceived,
+      report.onTime,
+      report.remarks || '—'
+    ];
+    values.forEach((value, index) => {
+      const cell = document.createElement('td');
+      cell.textContent = String(value ?? '');
+      cell.dataset.label = labels[index];
+      if (index === 10) {
+        cell.className = report.onTime === 'On Time' ? 'report-status on-time' : 'report-status late';
+      }
+      row.appendChild(cell);
+    });
+
+    const actionCell = document.createElement('td');
+    actionCell.dataset.label = 'Action';
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'table-action-btn edit-report-btn';
+    editButton.textContent = 'Review / edit';
+    editButton.setAttribute('aria-label', `Review and edit report for ${report.cashierName || 'cashier'}`);
+    editButton.addEventListener('click', () => openEditReportModal(Number(report.id)));
+    actionCell.appendChild(editButton);
+    row.appendChild(actionCell);
     tbody.appendChild(row);
   });
 
-  tbody.querySelectorAll('.edit-report-btn').forEach((button) => {
-    button.addEventListener('click', () => openEditReportModal(Number(button.dataset.id)));
-  });
-
-  renderDailyGroups();
+  refreshDailyExportDates();
 }
 
-function renderDailyGroups() {
-  if (!dailyReportGroups) return;
+function refreshDailyExportDates() {
+  const selectedDate = dailyExportDate.value;
+  const dates = [...new Set(state.submittedReports.map((report) => report.date).filter(Boolean))]
+    .sort((first, second) => second.localeCompare(first));
+  dailyExportDate.replaceChildren(new Option('Choose a date', ''));
 
-  const groups = state.submittedReports.reduce((acc, report) => {
-    const key = report.date || 'Unknown date';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(report);
-    return acc;
-  }, {});
-
-  const entries = Object.entries(groups).sort((a, b) => new Date(b[0]) - new Date(a[0]));
-
-  if (!entries.length) {
-    dailyReportGroups.innerHTML = '';
-    return;
-  }
-
-  dailyReportGroups.innerHTML = entries.map(([date, reports]) => `
-    <div class="day-group-card">
-      <div class="day-group-header">
-        <h4>${date}</h4>
-        <button class="secondary-btn export-day-btn" data-date="${date}">Export this day</button>
-      </div>
-      <div class="day-group-body">
-        <table class="day-group-table">
-          <thead>
-            <tr>
-              <th>Cashier</th>
-              <th>District</th>
-              <th>Transactions</th>
-              <th>Total</th>
-              <th>Wallet</th>
-              <th>Zeroized</th>
-              <th>Time</th>
-              <th>On Time</th>
-              <th>Remarks</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${reports.map((report) => `
-              <tr>
-                <td>${report.cashierName}</td>
-                <td>${report.district}</td>
-                <td>${report.transactions}</td>
-                <td>₦${formatCurrency(report.totalSales)}</td>
-                <td>₦${formatCurrency(report.walletBalance)}</td>
-                <td>${report.walletZeroized}</td>
-                <td>${report.timeReceived}</td>
-                <td>${report.onTime}</td>
-                <td>${report.remarks || '—'}</td>
-                <td><button class="table-action-btn edit-report-btn" data-id="${report.id}">Edit</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `).join('');
-
-  dailyReportGroups.querySelectorAll('.export-day-btn').forEach((button) => {
-    button.addEventListener('click', () => exportDailyGroup(button.dataset.date));
+  dates.forEach((date) => {
+    dailyExportDate.add(new Option(date, date));
   });
-
-  dailyReportGroups.querySelectorAll('.edit-report-btn').forEach((button) => {
-    button.addEventListener('click', () => openEditReportModal(Number(button.dataset.id)));
-  });
+  dailyExportDate.value = dates.includes(selectedDate) ? selectedDate : '';
+  exportSelectedDayBtn.disabled = !dailyExportDate.value;
 }
 
 function updateSummaryCards() {
@@ -357,6 +360,61 @@ function updateSummaryCards() {
   document.getElementById('onTimeReports').textContent = String(onTimeReports);
   document.getElementById('lateReports').textContent = String(lateReports);
   document.getElementById('totalCollection').textContent = `₦${formatCurrency(totalCollection)}`;
+  renderActivityChart();
+}
+
+function renderActivityChart() {
+  if (!activityChart) return;
+
+  const today = new Date();
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (6 - index));
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return {
+      key,
+      label: new Intl.DateTimeFormat('en', { weekday: 'short' }).format(date),
+      count: 0
+    };
+  });
+  const dayByKey = new Map(days.map((day) => [day.key, day]));
+
+  state.submittedReports.forEach((report) => {
+    const day = dayByKey.get(report.date);
+    if (day) day.count += 1;
+  });
+
+  const maxCount = Math.max(...days.map((day) => day.count), 1);
+  activityChart.replaceChildren();
+  activityChart.setAttribute(
+    'aria-label',
+    `Report activity over the last seven days: ${days.map((day) => `${day.label}, ${day.count}`).join('; ')}`
+  );
+
+  days.forEach((day) => {
+    const column = document.createElement('div');
+    column.className = 'activity-chart-column';
+
+    const value = document.createElement('span');
+    value.className = 'activity-chart-value';
+    value.textContent = String(day.count);
+
+    const track = document.createElement('div');
+    track.className = 'activity-chart-track';
+    track.setAttribute('aria-hidden', 'true');
+
+    const bar = document.createElement('div');
+    bar.className = `activity-chart-bar${day.count ? '' : ' is-empty'}`;
+    bar.style.height = `${Math.max((day.count / maxCount) * 100, day.count ? 12 : 4)}%`;
+    track.appendChild(bar);
+
+    const label = document.createElement('span');
+    label.className = 'activity-chart-label';
+    label.textContent = day.label;
+
+    column.append(value, track, label);
+    activityChart.appendChild(column);
+  });
 }
 
 function formatCurrency(value) {
@@ -378,22 +436,42 @@ function buildPreviewData() {
     transactions: document.getElementById('transactions') ? document.getElementById('transactions').value : '',
     totalSales: document.getElementById('totalSales') ? document.getElementById('totalSales').value : '',
     walletBalance: document.getElementById('walletBalance') ? document.getElementById('walletBalance').value : '',
+    cashierType: document.getElementById('previewCashierType').value,
+    walletZeroized: document.getElementById('previewWalletZeroized').value,
+    remarks: document.getElementById('previewRemarks').value.trim(),
     reportReceivedDate: reportReceivedDateInput ? reportReceivedDateInput.value : getCurrentDateString(),
     timeReceived: timeReceivedInput ? timeReceivedInput.value : getCurrentTimeString(),
     onTime: timingBadge ? timingBadge.textContent : 'Pending'
   };
 
-  previewContent.innerHTML = `
-    <div><span>Date</span><strong>${previewValues.date}</strong></div>
-    <div><span>District</span><strong>${previewValues.district}</strong></div>
-    <div><span>Cashier</span><strong>${previewValues.cashierName}</strong></div>
-    <div><span>Transactions</span><strong>${previewValues.transactions}</strong></div>
-    <div><span>Total Collection</span><strong>₦${formatCurrency(previewValues.totalSales)}</strong></div>
-    <div><span>Closing Wallet Balance</span><strong>₦${formatCurrency(previewValues.walletBalance)}</strong></div>
-    <div><span>Report Received</span><strong>${previewValues.reportReceivedDate}</strong></div>
-    <div><span>Time Received</span><strong>${previewValues.timeReceived}</strong></div>
-    <div><span>On Time</span><strong>${previewValues.onTime}</strong></div>
-  `;
+  if (cashierTypeField) cashierTypeField.value = previewValues.cashierType;
+  if (walletZeroizedField) walletZeroizedField.value = previewValues.walletZeroized;
+  if (remarksField) remarksField.value = previewValues.remarks;
+
+  const previewItems = [
+    ['Date', previewValues.date],
+    ['District', previewValues.district],
+    ['Cashier', previewValues.cashierName],
+    ['Cashier type', previewValues.cashierType],
+    ['Transactions', previewValues.transactions],
+    ['Total collection', `₦${formatCurrency(previewValues.totalSales)}`],
+    ['Closing wallet balance', `₦${formatCurrency(previewValues.walletBalance)}`],
+    ['Wallet zeroized', previewValues.walletZeroized],
+    ['Report received', previewValues.reportReceivedDate],
+    ['Time received', previewValues.timeReceived],
+    ['On time', previewValues.onTime],
+    ['Remarks', previewValues.remarks || '—']
+  ];
+  previewContent.replaceChildren();
+  previewItems.forEach(([label, value]) => {
+    const item = document.createElement('div');
+    const itemLabel = document.createElement('span');
+    itemLabel.textContent = label;
+    const itemValue = document.createElement('strong');
+    itemValue.textContent = String(value);
+    item.append(itemLabel, itemValue);
+    previewContent.appendChild(item);
+  });
 
   return previewValues;
 }
@@ -508,7 +586,7 @@ async function saveEditedReport(event) {
     updateSummaryCards();
     editReportModal.classList.add('hidden');
     editReportForm.reset();
-    showToast('Submitted report updated successfully.');
+    showToast('Reviewed report saved successfully.');
   } catch (error) {
     console.error('updateReportInDb error:', error);
     showToast('Unable to update report. Please try again.');
@@ -586,18 +664,19 @@ logoutBtn.addEventListener('click', () => {
   state.isLoggedIn = false;
   state.isAdminLoggedIn = false;
   setUserState();
-  adminSection.classList.add('hidden');
   adminModal.classList.add('hidden');
   showToast('You have signed out.');
 });
 
 toggleAdminBtn.addEventListener('click', () => {
   if (state.isAdminLoggedIn) {
-    adminSection.classList.toggle('hidden');
+    state.isAdminLoggedIn = false;
+    setUserState();
     return;
   }
 
   adminModal.classList.remove('hidden');
+  document.getElementById('adminPassword').focus();
 });
 
 adminLoginForm.addEventListener('submit', (event) => {
@@ -607,8 +686,7 @@ adminLoginForm.addEventListener('submit', (event) => {
   if (adminPassword === 'admin123') {
     state.isAdminLoggedIn = true;
     adminModal.classList.add('hidden');
-    adminSection.classList.remove('hidden');
-    toggleAdminBtn.textContent = 'Admin View Open';
+    setUserState();
     showToast('Admin access granted.');
   } else {
     showToast('Invalid admin password.');
@@ -617,23 +695,68 @@ adminLoginForm.addEventListener('submit', (event) => {
   adminLoginForm.reset();
 });
 
-document.getElementById('closeAdminPanel').addEventListener('click', () => {
-  adminSection.classList.add('hidden');
-  state.isAdminLoggedIn = false;
-  toggleAdminBtn.textContent = 'Switch to Admin';
+document.getElementById('cancelAdminLoginBtn').addEventListener('click', () => {
+  adminModal.classList.add('hidden');
+  adminLoginForm.reset();
 });
 
-cutoffTimeInput.addEventListener('change', (event) => {
-  state.settings.cutoffTime = event.target.value || '10:00';
-  saveSettings();
-  evaluateSubmissionTiming();
+adminModal.addEventListener('click', (event) => {
+  if (event.target === adminModal) {
+    adminModal.classList.add('hidden');
+    adminLoginForm.reset();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !adminModal.classList.contains('hidden')) {
+    adminModal.classList.add('hidden');
+    adminLoginForm.reset();
+  }
+});
+
+document.getElementById('closeAdminPanel').addEventListener('click', () => {
+  state.isAdminLoggedIn = false;
+  setUserState();
+});
+
+document.querySelectorAll('.admin-nav a').forEach((link) => {
+  link.addEventListener('click', () => {
+    document.querySelectorAll('.admin-nav a').forEach((navLink) => {
+      navLink.classList.toggle('active', navLink === link);
+    });
+  });
 });
 
 document.getElementById('saveSettingsBtn').addEventListener('click', () => {
-  state.settings.cutoffTime = cutoffTimeInput.value || '10:00';
+  if (!cutoffTimeInput.value) {
+    showToast('Choose a cutoff time before saving.');
+    cutoffTimeInput.focus();
+    return;
+  }
+
+  state.settings.cutoffTime = cutoffTimeInput.value;
   saveSettings();
-  evaluateSubmissionTiming();
-  showToast('Admin settings saved.');
+  setCurrentReportMeta();
+  showToast(`Daily cutoff saved as ${formatTime(state.settings.cutoffTime)}.`);
+});
+
+reportSearch.addEventListener('input', renderReportsTable);
+reportDistrictFilter.addEventListener('change', renderReportsTable);
+reportDateFilter.addEventListener('change', renderReportsTable);
+
+document.getElementById('clearReportFiltersBtn').addEventListener('click', () => {
+  reportSearch.value = '';
+  reportDistrictFilter.value = '';
+  reportDateFilter.value = '';
+  renderReportsTable();
+});
+
+dailyExportDate.addEventListener('change', () => {
+  exportSelectedDayBtn.disabled = !dailyExportDate.value;
+});
+
+exportSelectedDayBtn.addEventListener('click', () => {
+  if (dailyExportDate.value) exportDailyGroup(dailyExportDate.value);
 });
 
 document.getElementById('previewBtn').addEventListener('click', () => {
@@ -642,31 +765,20 @@ document.getElementById('previewBtn').addEventListener('click', () => {
     return;
   }
 
-  const cashierTypeField = document.getElementById('cashierType');
-  const walletZeroizedField = document.getElementById('walletZeroized');
-  const remarksField = document.getElementById('remarks');
-
-  if (cashierTypeField) cashierTypeField.value = adminCashierType.value || cashierTypeField.value || 'Main Cashier';
-  if (walletZeroizedField) walletZeroizedField.value = adminWalletZeroized.value || walletZeroizedField.value || 'No';
-  if (remarksField) remarksField.value = adminRemarks.value || remarksField.value || 'No remarks';
-
+  document.getElementById('previewCashierType').value = document.getElementById('cashierType').value || 'Main Cashier';
+  document.getElementById('previewWalletZeroized').value = document.getElementById('walletZeroized').value || 'No';
+  document.getElementById('previewRemarks').value = document.getElementById('remarks').value;
   buildPreviewData();
   previewModal.classList.remove('hidden');
 });
 
-document.getElementById('applyAdminReviewBtn').addEventListener('click', () => {
-  const cashierTypeField = document.getElementById('cashierType');
-  const walletZeroizedField = document.getElementById('walletZeroized');
-  const remarksField = document.getElementById('remarks');
-
-  if (cashierTypeField) cashierTypeField.value = adminCashierType.value;
-  if (walletZeroizedField) walletZeroizedField.value = adminWalletZeroized.value;
-  if (remarksField) remarksField.value = adminRemarks.value;
-  showToast('Admin review details applied.');
-});
-
 document.getElementById('cancelPreviewBtn').addEventListener('click', () => {
   previewModal.classList.add('hidden');
+});
+
+['previewCashierType', 'previewWalletZeroized', 'previewRemarks'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', buildPreviewData);
+  document.getElementById(id).addEventListener('change', buildPreviewData);
 });
 
 document.getElementById('confirmCheckOne').addEventListener('change', updateConfirmSubmitButton);
