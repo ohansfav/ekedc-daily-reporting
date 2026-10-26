@@ -1,22 +1,37 @@
 const DISTRICTS = [
+  'Agbara',
   'Ajah',
   'Ajele',
-  'Agbara',
   'Apapa',
   'Festac',
   'Ibeju',
   'Ijora',
-  'Ikate',
-  'Lekki',
-  'orile',
   'Island',
+  'Lekki',
   'Mushin',
-  'Ojo'
+  'Ojo',
+  'Orile'
 ];
+
+const DISTRICT_CASHIERS = {
+  Agbara: ['Augustine Oyathelemhi', 'Otun Fausat'],
+  Ajah: ['Taiwo Noimot'],
+  Ajele: ['Taiwo Akintoye', 'Mary Agbim'],
+  Apapa: ['Ojulari Waheed', 'Ikudehinbo Oluwatosin'],
+  Festac: ['Onileowo Victoria', 'Oluwaseyi Ajayi'],
+  Ibeju: ['Okiji Olubunmi Jacob'],
+  Ijora: ['Adebari Temitayo', 'Ibeto Catherine'],
+  Island: ['Olukoya Olanrewaju', 'Aromire Olasumbo (Azizat)'],
+  Lekki: ['Kareem Idowu'],
+  Mushin: ['Caroline Francis', 'Siyanbola Abosede'],
+  Ojo: ['Oke James', 'Tosin Onadele'],
+  Orile: ['Shodeke Oluwabanke']
+};
 
 const STORAGE_KEYS = {
   settings: 'ekedp_settings',
-  auth: 'ekedp_auth'
+  auth: 'ekedp_auth',
+  currentUser: 'ekedp_current_user'
 };
 
 const DB_NAME = 'ekedp_reports_db';
@@ -30,6 +45,7 @@ const defaultSettings = {
 const state = {
   isLoggedIn: false,
   isAdminLoggedIn: false,
+  currentUser: localStorage.getItem(STORAGE_KEYS.currentUser) || 'staff',
   submittedReports: [],
   settings: JSON.parse(localStorage.getItem(STORAGE_KEYS.settings) || JSON.stringify(defaultSettings))
 };
@@ -82,6 +98,74 @@ function initializeDistricts() {
     const filterOption = option.cloneNode(true);
     reportDistrictFilter.appendChild(filterOption);
   });
+
+  districtSelect.addEventListener('change', refreshCashierSuggestions);
+  refreshCashierSuggestions();
+}
+
+function getCashierNamesForDistrict(district) {
+  const districtNames = DISTRICT_CASHIERS[district] || [];
+  const savedNames = state.submittedReports
+    .filter((report) => report.district === district && report.cashierName)
+    .map((report) => report.cashierName.trim())
+    .filter(Boolean);
+
+  return [...new Set([...districtNames, ...savedNames])].sort((first, second) => first.localeCompare(second));
+}
+
+function refreshCashierSuggestions() {
+  const selectedDistrict = districtSelect ? districtSelect.value : '';
+  const cashierSelect = document.getElementById('cashierName');
+
+  if (!cashierSelect) return;
+
+  const allowedNames = getCashierNamesForDistrict(selectedDistrict);
+  cashierSelect.innerHTML = '<option value="">Select cashier</option>';
+
+  allowedNames.forEach((name) => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    cashierSelect.appendChild(option);
+  });
+
+  if (selectedDistrict && !allowedNames.includes(cashierSelect.value.trim())) {
+    cashierSelect.value = '';
+  }
+}
+
+function refreshEditCashierSuggestions() {
+  const selectedDistrict = editDistrict ? editDistrict.value : '';
+  const cashierSelect = document.getElementById('editCashierName');
+
+  if (!cashierSelect) return;
+
+  const allowedNames = getCashierNamesForDistrict(selectedDistrict);
+  cashierSelect.innerHTML = '<option value="">Select cashier</option>';
+
+  allowedNames.forEach((name) => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    cashierSelect.appendChild(option);
+  });
+
+  if (selectedDistrict && !allowedNames.includes(cashierSelect.value.trim())) {
+    cashierSelect.value = '';
+  }
+}
+
+function validateDistrictCashierSelection(selectedDistrict, cashierName) {
+  if (!selectedDistrict) return 'Please choose a district first.';
+
+  const allowedNames = getCashierNamesForDistrict(selectedDistrict);
+  if (!allowedNames.length) return 'No cashier name is assigned for this district yet.';
+
+  if (!allowedNames.includes(cashierName.trim())) {
+    return `Please choose a cashier from ${selectedDistrict}.`;
+  }
+
+  return '';
 }
 
 function saveSettings() {
@@ -270,7 +354,7 @@ function renderReportsTable() {
   if (!filteredReports.length) {
     const row = document.createElement('tr');
     const cell = document.createElement('td');
-    cell.colSpan = 13;
+    cell.colSpan = 14;
     cell.className = 'empty-table-message';
     cell.textContent = state.submittedReports.length
       ? 'No reports match these filters.'
@@ -285,37 +369,47 @@ function renderReportsTable() {
     const row = document.createElement('tr');
     const labels = [
       'Date',
+      'Cashier Name',
       'District',
-      'Cashier',
-      'Cashier type',
-      'Transactions',
-      'Total collection',
-      'Wallet balance',
-      'Zeroized',
-      'Received',
-      'Time',
-      'Status',
+      'Cashier Type',
+      'Report Received?',
+      'Time Received',
+      'On Time?',
+      'No. of Transactions',
+      'Total Collected (₦)',
+      'of which NKCG (₦)',
+      'Commission Earned (₦)',
+      'Closing Wallet Balance (₦)',
+      'Wallet Zeroized?',
+      'Submitted By',
+      'Integrity',
       'Remarks'
     ];
-    const values = [
+    const nkcgAmount = Number(report.nkcgAmount || 0);
+    const commissionEarned = Number(report.commissionEarned || 0);
+      const values = [
       report.date,
-      report.district,
       report.cashierName,
+      report.district,
       report.cashierType,
+      report.reportReceivedDate ? 'Yes' : 'No',
+      report.timeReceived || '—',
+      report.onTime || '—',
       report.transactions,
       `₦${formatCurrency(report.totalSales)}`,
+      `₦${formatCurrency(nkcgAmount)}`,
+      `₦${formatCurrency(commissionEarned)}`,
       `₦${formatCurrency(report.walletBalance)}`,
-      report.walletZeroized,
-      report.reportReceivedDate,
-      report.timeReceived,
-      report.onTime,
+      report.walletZeroized || 'No',
+      report.submittedBy || 'Unknown',
+      getReportIntegrityBadge(report),
       report.remarks || '—'
     ];
     values.forEach((value, index) => {
       const cell = document.createElement('td');
       cell.textContent = String(value ?? '');
       cell.dataset.label = labels[index];
-      if (index === 10) {
+      if (index === 6) {
         cell.className = report.onTime === 'On Time' ? 'report-status on-time' : 'report-status late';
       }
       row.appendChild(cell);
@@ -424,6 +518,38 @@ function formatCurrency(value) {
   });
 }
 
+function canonicalizeReportForHash(report) {
+  const payload = {
+    date: report.date || '',
+    district: report.district || '',
+    cashierName: report.cashierName || '',
+    cashierType: report.cashierType || '',
+    transactions: Number(report.transactions || 0),
+    totalSales: Number(report.totalSales || 0),
+    walletBalance: Number(report.walletBalance || 0),
+    walletZeroized: report.walletZeroized || 'No',
+    reportReceivedDate: report.reportReceivedDate || '',
+    timeReceived: report.timeReceived || '',
+    onTime: report.onTime || 'Late',
+    remarks: report.remarks || '',
+    submittedBy: report.submittedBy || 'unknown'
+  };
+
+  return JSON.stringify(payload, Object.keys(payload).sort());
+}
+
+async function computeReportHash(report) {
+  const input = canonicalizeReportForHash(report);
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function getReportIntegrityBadge(report) {
+  if (!report || !report.reportHash) return 'Unverified';
+  return 'Verified';
+}
+
 function buildPreviewData() {
   const cashierTypeField = document.getElementById('cashierType');
   const walletZeroizedField = document.getElementById('walletZeroized');
@@ -441,7 +567,8 @@ function buildPreviewData() {
     remarks: document.getElementById('previewRemarks').value.trim(),
     reportReceivedDate: reportReceivedDateInput ? reportReceivedDateInput.value : getCurrentDateString(),
     timeReceived: timeReceivedInput ? timeReceivedInput.value : getCurrentTimeString(),
-    onTime: timingBadge ? timingBadge.textContent : 'Pending'
+    onTime: timingBadge ? timingBadge.textContent : 'Pending',
+    submittedBy: state.currentUser || 'staff'
   };
 
   if (cashierTypeField) cashierTypeField.value = previewValues.cashierType;
@@ -490,11 +617,131 @@ function exportWorkbook(data, fileName = 'ekedp_cashier_reports.xlsx', sheetName
   XLSX.writeFile(workbook, fileName);
 }
 
+function buildDailyExportRows(records) {
+  return records.map((report) => ({
+    Date: report.date,
+    'Cashier Name': report.cashierName,
+    District: report.district,
+    'Cashier Type': report.cashierType,
+    'Submitted By': report.submittedBy || 'Unknown',
+    'Report Received?': report.reportReceivedDate ? 'Yes' : 'No',
+    'Time Received': report.timeReceived || '',
+    'On Time?': report.onTime || 'Late',
+    'Integrity': getReportIntegrityBadge(report),
+    'No. of Transactions': Number(report.transactions || 0),
+    'Total Collected (₦)': Number(report.totalSales || 0),
+    'of which NKCG (₦)': Number(report.nkcgAmount || 0),
+    'Commission Earned (₦)': Number(report.commissionEarned || 0),
+    'Closing Wallet Balance (₦)': Number(report.walletBalance || 0),
+    'Wallet Zeroized?': report.walletZeroized || 'No',
+    Remarks: report.remarks || ''
+  }));
+}
+
+function createDailyLogSheet(rows, titleDate = '') {
+  const headers = [
+    'Date',
+    'Cashier Name',
+    'District',
+    'Cashier Type',
+    'Submitted By',
+    'Report Received?',
+    'Time Received',
+    'On Time?',
+    'Integrity',
+    'No. of Transactions',
+    'Total Collected (₦)',
+    'of which NKCG (₦)',
+    'Commission Earned (₦)',
+    'Closing Wallet Balance (₦)',
+    'Wallet Zeroized?',
+    'Remarks'
+  ];
+
+  const sheetData = [
+    ['Daily Cashier Report Log'],
+    ['One row per cashier per day, copied from the 6pm WhatsApp reports. Pale gold cells: fill in. White cells: automatic.'],
+    [],
+    headers,
+    ...rows.map((row) => [
+      row.Date,
+      row['Cashier Name'],
+      row.District,
+      row['Cashier Type'],
+      row['Submitted By'],
+      row['Report Received?'],
+      row['Time Received'],
+      row['On Time?'],
+      row.Integrity,
+      row['No. of Transactions'],
+      row['Total Collected (₦)'],
+      row['of which NKCG (₦)'],
+      row['Commission Earned (₦)'],
+      row['Closing Wallet Balance (₦)'],
+      row['Wallet Zeroized?'],
+      row.Remarks
+    ])
+  ];
+
+  const sheet = XLSX.utils.aoa_to_sheet(sheetData);
+  sheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 15 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 15 } }
+  ];
+
+  const titleStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 18 },
+    fill: { fgColor: { rgb: '1F2D5C' } },
+    alignment: { horizontal: 'left', vertical: 'center' }
+  };
+  const subtitleStyle = {
+    font: { italic: true, color: { rgb: '1F1F1F' }, sz: 10 },
+    fill: { fgColor: { rgb: 'EAEAEA' } },
+    alignment: { horizontal: 'left', vertical: 'center' }
+  };
+  const headerStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 10 },
+    fill: { fgColor: { rgb: '1F3C88' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: '000000' } },
+      bottom: { style: 'thin', color: { rgb: '000000' } },
+      left: { style: 'thin', color: { rgb: '000000' } },
+      right: { style: 'thin', color: { rgb: '000000' } }
+    }
+  };
+
+  for (let col = 0; col <= 15; col += 1) {
+    const headerCell = sheet[XLSX.utils.encode_cell({ r: 3, c: col })];
+    if (headerCell) headerCell.s = headerStyle;
+    const rowCell = sheet[XLSX.utils.encode_cell({ r: 0, c: col })];
+    if (rowCell) rowCell.s = titleStyle;
+    const subCell = sheet[XLSX.utils.encode_cell({ r: 1, c: col })];
+    if (subCell) subCell.s = subtitleStyle;
+  }
+
+  sheet['!cols'] = Array.from({ length: 16 }, (_, index) => ({
+    wch: index === 0 || index === 3 || index === 4 || index === 5 || index === 6 || index === 7 || index === 8 || index === 9 || index === 10 || index === 11 || index === 12 || index === 13 || index === 14 || index === 15 ? 18 : 15
+  }));
+
+  if (titleDate) {
+    const titleRow = sheetData[0][0] ? sheetData[0][0] : '';
+    sheet['A1'] = { t: 's', v: titleRow };
+  }
+
+  return sheet;
+}
+
 function exportDailyGroup(dateValue) {
   const records = state.submittedReports.filter((report) => report.date === dateValue);
   if (!records.length) return;
 
-  exportWorkbook(records, `ekedp_${dateValue}_cashier_reports.xlsx`, `Daily_${dateValue}`);
+  const exportRows = buildDailyExportRows(records);
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = createDailyLogSheet(exportRows, dateValue);
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Daily Log');
+  XLSX.writeFile(workbook, `ekedp_${dateValue}_cashier_report.xlsx`);
   showToast(`Exported ${records.length} report(s) for ${dateValue}.`);
 }
 
@@ -504,26 +751,70 @@ function exportWeeklyReport() {
     return;
   }
 
-  const weeklyGroups = buildWeeklyGroups(state.submittedReports);
+  const groupedByWeek = state.submittedReports.reduce((accumulator, report) => {
+    const weekKey = getWeekKey(report.date || '');
+    if (!weekKey || weekKey === 'Unknown Week') return accumulator;
+    if (!accumulator[weekKey]) accumulator[weekKey] = [];
+    accumulator[weekKey].push(report);
+    return accumulator;
+  }, {});
+
+  const sortedWeeks = Object.keys(groupedByWeek).sort((first, second) => second.localeCompare(first));
   const workbook = XLSX.utils.book_new();
 
-  weeklyGroups.forEach(([weekKey, records]) => {
-    const sheet = XLSX.utils.json_to_sheet(records);
-    XLSX.utils.book_append_sheet(workbook, sheet, weekKey);
+  sortedWeeks.forEach((weekKey) => {
+    const rows = buildDailyExportRows(groupedByWeek[weekKey]);
+    const sheet = createDailyLogSheet(rows, weekKey);
+    XLSX.utils.book_append_sheet(workbook, sheet, `Week ${weekKey}`);
   });
 
-  const weeklySummary = weeklyGroups.map(([weekKey, records]) => ({
-    week: weekKey,
-    reports: records.length,
-    totalCollection: records.reduce((sum, item) => sum + Number(item.totalSales || 0), 0),
-    onTime: records.filter((item) => item.onTime === 'On Time').length,
-    late: records.filter((item) => item.onTime !== 'On Time').length
+  const weeklySummary = sortedWeeks.map((weekKey) => ({
+    Week: weekKey,
+    Reports_Submitted: groupedByWeek[weekKey].length,
+    Total_Collection: groupedByWeek[weekKey].reduce((sum, item) => sum + Number(item.totalSales || 0), 0),
+    On_Time: groupedByWeek[weekKey].filter((item) => item.onTime === 'On Time').length,
+    Late: groupedByWeek[weekKey].filter((item) => item.onTime !== 'On Time').length
   }));
 
   const summarySheet = XLSX.utils.json_to_sheet(weeklySummary);
-  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Weekly_Summary');
-  XLSX.writeFile(workbook, 'ekedp_weekly_report.xlsx');
-  showToast('Weekly report export generated successfully.');
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Weekly Summary');
+  XLSX.writeFile(workbook, 'ekedp_weekly_reports.xlsx');
+  showToast(`Weekly export generated for ${sortedWeeks.length} week(s).`);
+}
+
+function exportDailyReport() {
+  if (!state.submittedReports.length) {
+    showToast('No data available for daily export.');
+    return;
+  }
+
+  const groupedByDate = state.submittedReports.reduce((accumulator, report) => {
+    const dateKey = report.date || 'Unknown Date';
+    if (!accumulator[dateKey]) accumulator[dateKey] = [];
+    accumulator[dateKey].push(report);
+    return accumulator;
+  }, {});
+
+  const workbook = XLSX.utils.book_new();
+  const sortedDates = Object.keys(groupedByDate).sort((first, second) => second.localeCompare(first));
+  const primaryDate = sortedDates[0] || '';
+  const primaryRows = buildDailyExportRows(groupedByDate[primaryDate] || []);
+
+  const dailyLogSheet = createDailyLogSheet(primaryRows, primaryDate);
+  XLSX.utils.book_append_sheet(workbook, dailyLogSheet, 'Daily Log');
+
+  const dailySummary = sortedDates.map((dateKey) => ({
+    Date: dateKey,
+    Reports_Submitted: groupedByDate[dateKey].length,
+    Total_Collection: groupedByDate[dateKey].reduce((sum, item) => sum + Number(item.totalSales || 0), 0),
+    On_Time: groupedByDate[dateKey].filter((item) => item.onTime === 'On Time').length,
+    Late: groupedByDate[dateKey].filter((item) => item.onTime !== 'On Time').length
+  }));
+
+  const summarySheet = XLSX.utils.json_to_sheet(dailySummary);
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Daily Summary');
+  XLSX.writeFile(workbook, 'ekedp_daily_reports.xlsx');
+  showToast('Daily report export generated successfully.');
 }
 
 function populateEditDistrictOptions() {
@@ -541,6 +832,7 @@ function openEditReportModal(reportId) {
   populateEditDistrictOptions();
   document.getElementById('editReportDate').value = report.date || '';
   document.getElementById('editDistrict').value = report.district || '';
+  refreshEditCashierSuggestions();
   document.getElementById('editCashierName').value = report.cashierName || '';
   document.getElementById('editCashierType').value = report.cashierType || 'Main Cashier';
   document.getElementById('editTransactions').value = report.transactions || 0;
@@ -563,11 +855,19 @@ async function saveEditedReport(event) {
   const index = state.submittedReports.findIndex((report) => report.id === id);
   if (index === -1) return;
 
+  const selectedDistrict = document.getElementById('editDistrict').value;
+  const cashierName = document.getElementById('editCashierName').value.trim();
+  const cashierError = validateDistrictCashierSelection(selectedDistrict, cashierName);
+  if (cashierError) {
+    showToast(cashierError);
+    return;
+  }
+
   const updatedReport = {
     ...state.submittedReports[index],
     date: document.getElementById('editReportDate').value,
-    district: document.getElementById('editDistrict').value,
-    cashierName: document.getElementById('editCashierName').value.trim(),
+    district: selectedDistrict,
+    cashierName,
     cashierType: document.getElementById('editCashierType').value,
     transactions: Number(document.getElementById('editTransactions').value || 0),
     totalSales: Number(document.getElementById('editTotalSales').value || 0),
@@ -576,10 +876,14 @@ async function saveEditedReport(event) {
     reportReceivedDate: document.getElementById('editReportReceivedDate').value,
     timeReceived: document.getElementById('editTimeReceived').value,
     onTime: document.getElementById('editOnTimeStatus').value,
-    remarks: document.getElementById('editRemarks').value.trim()
+    remarks: document.getElementById('editRemarks').value.trim(),
+    submittedBy: state.submittedReports[index].submittedBy || 'unknown',
+    lastEditedBy: state.currentUser || 'admin',
+    editedAt: new Date().toISOString()
   };
 
   try {
+    updatedReport.reportHash = await computeReportHash(updatedReport);
     await updateReportInDb(updatedReport);
     state.submittedReports[index] = updatedReport;
     renderReportsTable();
@@ -595,6 +899,12 @@ async function saveEditedReport(event) {
 
 async function submitReport() {
   const payload = buildPreviewData();
+
+  const cashierError = validateDistrictCashierSelection(payload.district, payload.cashierName);
+  if (cashierError) {
+    showToast(cashierError);
+    return;
+  }
 
   const cashierTypeField = document.getElementById('cashierType');
   const walletZeroizedField = document.getElementById('walletZeroized');
@@ -614,10 +924,15 @@ async function submitReport() {
     reportReceivedDate: payload.reportReceivedDate,
     timeReceived: payload.timeReceived,
     onTime: payload.onTime,
-    remarks: payload.remarks
+    remarks: payload.remarks,
+    submittedBy: payload.submittedBy || state.currentUser || 'staff',
+    createdAt: new Date().toISOString(),
+    lastEditedBy: null,
+    editedAt: null
   };
 
   try {
+    record.reportHash = await computeReportHash(record);
     const savedId = await saveReportToDb(record);
     record.id = savedId;
     state.submittedReports.push(record);
@@ -651,6 +966,8 @@ loginForm.addEventListener('submit', (event) => {
 
   if (username === 'admin' && password === 'admin') {
     localStorage.setItem(STORAGE_KEYS.auth, 'authenticated');
+    localStorage.setItem(STORAGE_KEYS.currentUser, username);
+    state.currentUser = username;
     state.isLoggedIn = true;
     setUserState();
     showToast('Sign in successful.');
@@ -751,6 +1068,9 @@ document.getElementById('clearReportFiltersBtn').addEventListener('click', () =>
   renderReportsTable();
 });
 
+districtSelect.addEventListener('change', refreshCashierSuggestions);
+editDistrict.addEventListener('change', refreshEditCashierSuggestions);
+
 dailyExportDate.addEventListener('change', () => {
   exportSelectedDayBtn.disabled = !dailyExportDate.value;
 });
@@ -795,41 +1115,7 @@ document.getElementById('confirmSubmitBtn').addEventListener('click', () => {
 });
 
 document.getElementById('exportAllBtn').addEventListener('click', () => {
-  if (!state.submittedReports.length) {
-    showToast('No reports available to export.');
-    return;
-  }
-
-  const dateGrouped = state.submittedReports.reduce((acc, report) => {
-    const dateKey = report.date || 'Unknown Date';
-    if (!acc[dateKey]) acc[dateKey] = [];
-    acc[dateKey].push(report);
-    return acc;
-  }, {});
-
-  const workbook = XLSX.utils.book_new();
-
-  Object.entries(dateGrouped).forEach(([dateKey, reports]) => {
-    const sheet = XLSX.utils.json_to_sheet(reports);
-    XLSX.utils.book_append_sheet(workbook, sheet, `Daily_${dateKey}`);
-  });
-
-  const weeklyGrouped = buildWeeklyGroups(state.submittedReports);
-  if (weeklyGrouped.length) {
-    const weeklySummary = weeklyGrouped.map(([weekKey, records]) => ({
-      week: weekKey,
-      reports: records.length,
-      totalCollection: records.reduce((sum, item) => sum + Number(item.totalSales || 0), 0),
-      onTime: records.filter((item) => item.onTime === 'On Time').length,
-      late: records.filter((item) => item.onTime !== 'On Time').length
-    }));
-
-    const weeklySheet = XLSX.utils.json_to_sheet(weeklySummary);
-    XLSX.utils.book_append_sheet(workbook, weeklySheet, 'Weekly_Summary');
-  }
-
-  XLSX.writeFile(workbook, 'ekedp_all_daily_reports.xlsx');
-  showToast('Grouped daily and weekly Excel export created.');
+  exportDailyReport();
 });
 
 if (exportWeeklyBtn) {
